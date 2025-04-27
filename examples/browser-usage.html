@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF.js Browser Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .canvas-container {
+      border: 1px solid #ccc;
+      overflow: auto;
+    }
+    canvas {
+      display: block;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button, input {
+      padding: 8px 12px;
+    }
+    .page-info {
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>PDF.js Browser Example</h1>
+  
+  <div class="container">
+    <div class="controls">
+      <input type="file" id="fileInput" accept=".pdf" />
+      <button id="prevBtn" disabled>Previous</button>
+      <button id="nextBtn" disabled>Next</button>
+      <span class="page-info" id="pageInfo">No document loaded</span>
+      <button id="downloadBtn" disabled>Download</button>
+    </div>
+    
+    <div class="canvas-container">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loadPDFInBrowser, renderPageToCanvas, downloadPDF } from '../dist/browser.js';
+
+    let pdfDocument = null;
+    let currentPage = 0;
+    
+    const fileInput = document.getElementById('fileInput');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageInfo = document.getElementById('pageInfo');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    // Load PDF file
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        try {
+          // Convert File to ArrayBuffer
+          const arrayBuffer = await file.arrayBuffer();
+          const data = new Uint8Array(arrayBuffer);
+          
+          // Load the PDF
+          pdfDocument = await loadPDFInBrowser(data);
+          
+          // Update UI
+          currentPage = 0;
+          pageInfo.textContent = `Page ${currentPage + 1} of ${pdfDocument.pageCount}`;
+          prevBtn.disabled = currentPage <= 0;
+          nextBtn.disabled = currentPage >= pdfDocument.pageCount - 1;
+          downloadBtn.disabled = false;
+          
+          // Render the first page
+          renderCurrentPage();
+        } catch (error) {
+          console.error('Error loading PDF:', error);
+          alert('Error loading PDF: ' + error.message);
+        }
+      }
+    });
+    
+    // Navigation
+    prevBtn.addEventListener('click', () => {
+      if (pdfDocument && currentPage > 0) {
+        currentPage--;
+        renderCurrentPage();
+      }
+    });
+    
+    nextBtn.addEventListener('click', () => {
+      if (pdfDocument && currentPage < pdfDocument.pageCount - 1) {
+        currentPage++;
+        renderCurrentPage();
+      }
+    });
+    
+    // Download
+    downloadBtn.addEventListener('click', () => {
+      if (pdfDocument) {
+        downloadPDF(pdfDocument, 'downloaded.pdf');
+      }
+    });
+    
+    // Render current page
+    async function renderCurrentPage() {
+      if (!pdfDocument) return;
+      
+      const page = pdfDocument.getPage(currentPage);
+      if (page) {
+        // Update UI
+        pageInfo.textContent = `Page ${currentPage + 1} of ${pdfDocument.pageCount}`;
+        prevBtn.disabled = currentPage <= 0;
+        nextBtn.disabled = currentPage >= pdfDocument.pageCount - 1;
+        
+        // Render the page
+        await renderPageToCanvas(page, pdfCanvas, {
+          scale: 1.5
+        });
+      }
+    }
+  </script>
+</body>
+</html>
