@@ -1,16 +1,26 @@
-import { PDFSerializer } from "./serializer"
-import { PDFError, ErrorCodes } from "./error"
-import * as fs from "fs"
-
 /**
  * Represents a PDF document
  * @class
  */
+
+export type PDFPage = {}
+export type PDFMetadata = {}
+export type PDFOutline = {}
+export type PDFForm = {}
+
 export class PDFDocument {
   private _pages: PDFPage[] = []
   private _metadata: PDFMetadata = {}
   private _outline: PDFOutline | null = null
   private _form: PDFForm | null = null
+  private _attachments: Array<{
+    filename: string
+    description: string
+    creationDate: Date
+    modificationDate: Date
+    mimeType: string
+    data: Buffer
+  }> = []
   private _compressed = false
 
   /**
@@ -53,6 +63,21 @@ export class PDFDocument {
    */
   get form(): PDFForm | null {
     return this._form
+  }
+
+  /**
+   * Get the document attachments
+   * @returns {Array<{filename: string, description: string, creationDate: Date, modificationDate: Date, mimeType: string, data: Buffer}>} - Document attachments
+   */
+  get attachments(): Array<{
+    filename: string
+    description: string
+    creationDate: Date
+    modificationDate: Date
+    mimeType: string
+    data: Buffer
+  }> {
+    return [...this._attachments]
   }
 
   /**
@@ -100,6 +125,51 @@ export class PDFDocument {
   }
 
   /**
+   * Insert a page at a specific index
+   * @param {number} index - Index to insert at
+   * @param {PDFPage} page - The page to insert
+   * @returns {boolean} - True if the page was inserted
+   */
+  insertPage(index: number, page: PDFPage): boolean {
+    if (index < 0 || index > this._pages.length) {
+      return false
+    }
+
+    this._pages.splice(index, 0, page)
+    return true
+  }
+
+  /**
+   * Remove a page at a specific index
+   * @param {number} index - Index of the page to remove
+   * @returns {PDFPage | null} - The removed page, or null if index is out of bounds
+   */
+  removePage(index: number): PDFPage | null {
+    if (index < 0 || index >= this._pages.length) {
+      return null
+    }
+
+    const [removedPage] = this._pages.splice(index, 1)
+    return removedPage
+  }
+
+  /**
+   * Replace a page at a specific index
+   * @param {number} index - Index of the page to replace
+   * @param {PDFPage} page - The new page
+   * @returns {PDFPage | null} - The replaced page, or null if index is out of bounds
+   */
+  replacePage(index: number, page: PDFPage): PDFPage | null {
+    if (index < 0 || index >= this._pages.length) {
+      return null
+    }
+
+    const oldPage = this._pages[index]
+    this._pages[index] = page
+    return oldPage
+  }
+
+  /**
    * Set the document outline
    * @param {PDFOutline} outline - Document outline
    */
@@ -108,120 +178,5 @@ export class PDFDocument {
   }
 
   /**
-   * Set the document form
-   * @param {PDFForm} form - Document form
    */
-  setForm(form: PDFForm): void {
-    this._form = form
-  }
-
-  /**
-   * Save the document to a file
-   * @param {string} filePath - Path to save the file
-   * @returns {Promise<void>} - Promise resolving when the file is saved
-   */
-  async save(filePath: string): Promise<void> {
-    try {
-      const buffer = await this.toBuffer()
-      await fs.promises.writeFile(filePath, buffer)
-    } catch (error) {
-      throw new PDFError(ErrorCodes.UNKNOWN_ERROR, `Error saving PDF to ${filePath}`, error as Error)
-    }
-  }
-
-  /**
-   * Convert the document to a buffer
-   * @param {object} options - Serialization options
-   * @returns {Promise<Buffer>} - Promise resolving to a buffer containing the PDF data
-   */
-  async toBuffer(
-    options: {
-      compress?: boolean
-      encrypt?: boolean
-      userPassword?: string
-      ownerPassword?: string
-    } = {},
-  ): Promise<Buffer> {
-    try {
-      // Create a serializer with the specified options
-      const serializer = new PDFSerializer({
-        compressStreams: options.compress !== false,
-        encryptDocument: options.encrypt || false,
-        userPassword: options.userPassword,
-        ownerPassword: options.ownerPassword,
-      })
-
-      // Serialize the document
-      return await serializer.serialize(this)
-    } catch (error) {
-      if (error instanceof PDFError) {
-        throw error
-      }
-      throw new PDFError(ErrorCodes.UNKNOWN_ERROR, "Error converting PDF to buffer", error as Error)
-    }
-  }
-
-  /**
-   * Compress the document
-   * @returns {Promise<void>} - Promise resolving when compression is complete
-   */
-  async compress(): Promise<void> {
-    if (this._compressed) {
-      return // Already compressed
-    }
-
-    try {
-      // Compress each page
-      for (const page of this._pages) {
-        await page.compress()
-      }
-
-      this._compressed = true
-    } catch (error) {
-      throw new PDFError(ErrorCodes.UNKNOWN_ERROR, "Error compressing PDF document", error as Error)
-    }
-  }
-
-  /**
-   * Decompress the document
-   * @returns {Promise<void>} - Promise resolving when decompression is complete
-   */
-  async decompress(): Promise<void> {
-    if (!this._compressed) {
-      return // Not compressed
-    }
-
-    try {
-      // Decompress each page
-      for (const page of this._pages) {
-        await page.decompress()
-      }
-
-      this._compressed = false
-    } catch (error) {
-      throw new PDFError(ErrorCodes.UNKNOWN_ERROR, "Error decompressing PDF document", error as Error)
-    }
-  }
 }
-
-/**
- * PDF document metadata
- */
-export interface PDFMetadata {
-  title?: string
-  author?: string
-  subject?: string
-  keywords?: string[]
-  creator?: string
-  producer?: string
-  creationDate?: Date
-  modificationDate?: Date
-  encrypted?: boolean
-  encryptionMethod?: string
-  [key: string]: any
-}
-
-// Import at the end to avoid circular dependencies
-import type { PDFPage } from "./page"
-import type { PDFOutline } from "./outline"
-import type { PDFForm } from "./form"

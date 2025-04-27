@@ -277,6 +277,41 @@ if (form) {
 
 The library can be used in both Node.js and browser environments. When used in a browser, certain Node.js-specific functionality (like file system operations) is automatically replaced with browser-compatible alternatives.
 
+## TypeScript Support
+
+The library includes TypeScript declaration files (.d.ts) for better IDE support and type checking. When using the library in a TypeScript project, you'll get:
+
+- Autocompletion for all methods and properties
+- Type checking for function parameters and return values
+- Documentation comments in your IDE
+
+Example usage in TypeScript:
+
+\`\`\`typescript
+import { createPDF, PDFDocument, PDFPage } from 'node-pdf-lib';
+
+async function createSimplePDF(): Promise<PDFDocument> {
+  const creator = createPDF({
+    metadata: {
+      title: 'TypeScript Example',
+      author: 'node-pdf-lib'
+    }
+  });
+  
+  const page: PDFPage = creator.addPage();
+  
+  creator.addText(page, 'Hello from TypeScript!', {
+    x: 72,
+    y: 720,
+    fontSize: 24
+  });
+  
+  return creator.document;
+}
+\`\`\`
+
+The declaration files are automatically included when you install the package.
+
 ## License
 
 MIT
